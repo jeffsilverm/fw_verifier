@@ -14,7 +14,7 @@
 #define handle_error(msg) \
         do { perror(msg); exit(EXIT_FAILURE); } while (0)
 
-#define MAX_NUM_THREADS 6
+#define MAX_NUM_THREADS 30000
 
 struct thread_info {    /* Used as argument to thread_start() */
     pthread_t thread_id;        /* ID returned by pthread_create() */

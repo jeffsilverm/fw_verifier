@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#define MAX_CHILDREN    20
+#define MAX_CHILDREN    50000
 
 int annotate(int status, char *generation){
     if ( status == 0 ){

@@ -10,6 +10,8 @@ This subroutine opens a IPv4 TCP port which is passed as an argument.
 #include <string.h>
 // #include <sys/socket.h>
 #include <netinet/ip.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 #define handle_error(msg) \
@@ -27,7 +29,7 @@ int make_socket(int socket_number) {
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(socket_number);
-    servaddr.sin_addr = INADDR_ANY;
+    servaddr.sin_addr.s_addr = INADDR_ANY;
 
 
     if (bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1)
