@@ -21,11 +21,12 @@ cannot be connected to when the firewall and can be connected to when the firewa
 This is an incomplete description of what is available.
 I was trying to look at just 3 ports, 2048,2049, and 2050.  2049 is in use. 2048 and 2050 normally are free.
 ### netcat or nc
-nc ADDRESS
+nc ADDRESS PORT
+where 
 
 ### tcpdump
-tcpdump -n tcp portrange 2048-2050
-tcpdump -n tcp portrange 2048-2050 and host HOST
+<kbd>tcpdump -n tcp portrange 2048-2050</kbd>
+<kbd>tcpdump -n tcp portrange 2048-2050 and host HOST</kbd>
 
 note: tcpdump might not work as you would think if the client and the server are on the same machine.
 
@@ -33,7 +34,7 @@ note: tcpdump might not work as you would think if the client and the server are
 If you see TCP inbound packets coming with the SYN bit [S] set, but nothing coming out, then this particular
 port is blocked by a firewall.
 
-jeffs@jeffs-desktop:~/fw_verifier$ sudo tcpdump -n tcp portrange 2048-2050 and host 192.168.0.149
+jeffs@jeffs-desktop:~/fw_verifier$ <kbd>sudo tcpdump -n tcp portrange 2048-2050 and host 192.168.0.149</kbd><samp>
 [sudo] password for jeffs: 
 tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
 listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
@@ -43,6 +44,7 @@ listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
 00:48:00.757988 IP 192.168.0.159.38896 > 192.168.0.149.2050: Flags [S], seq 2376835721, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
 00:48:00.758087 IP 192.168.0.159.41092 > 192.168.0.149.2048: Flags [S], seq 3528916545, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
 00:48:00.758186 IP 192.168.0.159.55184 > 192.168.0.149.2049: Flags [S], seq 2603460365, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
+</samp>
 
 #### Failure mode: nothing is listening on that port.
 
