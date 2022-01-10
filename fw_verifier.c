@@ -98,8 +98,8 @@ int main(int argc, char **argv)
     putc('.', stdout);
   };
   putc('\n', stdout); */
-  fprintf(stderr, "Waiting for you to press enter\n");
-  fflush(stderr);
+  printf("Waiting for you to press enter\n");
+  fflush(stdout);
 
   status = getchar();
   printf("Now reaping children\n");
@@ -141,6 +141,7 @@ int opensocket(const int serverPort)
   socklen_t serverSaSize;
   int c;
   char buf[INET6_ADDRSTRLEN];
+  char wb[10000]; // a working buffer for, well, just about any short term string manipulation
 
   int s = socket(PF_INET6, SOCK_STREAM, 0); // s a file descriptor, suitable for read, write, listen or accept syscalls
   if (s < 0)
@@ -224,7 +225,8 @@ ports for new client connections after being restarted.
   rc = bind(s, (struct sockaddr *)&serverSa, serverSaSize);
   if (rc < 0)
   {
-    perror("bind failed");
+    sprintf(wb, "bind failed on port %d", serverPort);
+    perror(wb);
     return -2;
   }
   rc = listen(s, 10);
