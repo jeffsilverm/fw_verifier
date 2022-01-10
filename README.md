@@ -247,3 +247,14 @@ listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
 ...
 </samp>
 ```
+
+## Building `fw_verifier`.
+
+Building `fw_verifier` is very easy.  For development, include the `-g` switch, otherwise don't.  `-g` includes debugging information and has really very little
+penalty if you just always use it.
+
+```
+ gcc -g fw_verifier.c -lpthread -o fw_verifier
+```
+
+This has been tested only on Ubuntu Linux 20.04 on a 64 bit computer.
