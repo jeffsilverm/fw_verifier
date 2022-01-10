@@ -248,6 +248,33 @@ listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
 </samp>
 ```
 
+## Test plan
+- run with and without sudo on well known ports
+- run on range of 1 to 65535 ports
+- run with stupid inputs on the command line
+  * bad integers
+  * order reversed
+  * Missing the second argument
+- test with nmap on from remote host
+- Test with ufw service off completely
+- Test with some ports filtered by firewall and others not filters
+- Test all of the above with IPv6
+- Automate testing of all of the above.
+
+## known bugs (as of Jan 10, 2022)
+
+- Explicit limit of 30000 ports.
+- Implicit limit of < 30000 ports, the exact number is not known, and how to remediate it not known, either.
+- Putting numbers in backwards (e.g. `fw_verifier 8000 7000`) fails silently.
+- Other cases of bad input (e.g. `fw_verifier 8000 w`) fail silently
+- Running against ports numbered below 1024 fail in a way I would find confusing if I didn't known why those failures occur (this does not happen if running with sudo)
+- reporting is really useless and needs a lot of work.
+- The error messages should always include both the thread number and the port number.
+- I no longer need to know the thread number at the start of each thread, but I do need to know the outcome of each thread, sorted by port number
+
+
+
+
 ## Building `fw_verifier`.
 
 Building `fw_verifier` is very easy.  For development, include the `-g` switch, otherwise don't.  `-g` includes debugging information and has really very little
