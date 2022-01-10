@@ -94,9 +94,8 @@ Nmap scan report for jeffs-desktop (192.168.0.149)
 Host is up (0.00051s latency).
 
 PORT     STATE  SE</samp>
-pi@raspberrypi:~ $ 
-```
-s-monitor
+2047/tcp closed dls
+2048/tcp open dls-monitor
 2049/tcp open   nfs
 2050/tcp open   av-emb-config
 2051/tcp open   epnsdp
@@ -170,33 +169,69 @@ U = URGENT
 E 
 
 
-
-
-
-
-
-
-
-
-
 ## Failure mode: a firewall has blocked this port.
-If you see TCP inbound packets coming with the SYN bit [S] set, but nothing coming out, then this particular
-port is blocked by a firewall.
+Now that we know what a firewall looks like when turned off (passing), then let's try it when the firewall is turned on.
 
-In this test, I am using the firewall to block access to ports 2047 (nothing listening to it), port 2048 (`fw_verifier` listening to it), and port 2049 (I don't know what is listening to it).  Ports 2050 and
-ports 2051 are not affected.
+In this test, I am using the firewall to block access to ports 2047 (nothing listening to it), port 2048 (`fw_verifier` listening to it), and port 2049 (I don't know what is listening to it).  Ports 2050 and ports 2051 are not affected by this change.  Neither will the results of running `lsof` change.
+
+Here are the `iptables` commands I use to block traffic to ports 2047, 2048, and 2049:
 ```
-root@jeffs-desktop:~# <kbd>iptables -I INPUT 1 -p tcp --sport 2047 -j DROP</kbd>
-root@jeffs-desktop:~# <kbd>iptables -I INPUT 1 -p tcp --sport 2048 -j DROP</kbd>
-root@jeffs-desktop:~# <kbd>iptables -I INPUT 1 -p tcp --sport 2049 -j DROP</kbd>
-root@jeffs-desktop:~# <kbd>iptables -L INPUT<samp>
+root@jeffs-desktop:~# iptables -I INPUT 1 -p tcp --dport 2047 -j DROP
+root@jeffs-desktop:~# iptables -I INPUT 2 -p tcp --dport 2048 -j DROP
+root@jeffs-desktop:~# iptables -I INPUT 3 -p tcp --dport 2049 -j DROP
+root@jeffs-desktop:~# iptables -L INPUT
 Chain INPUT (policy DROP)
 target     prot opt source               destination         
-DROP       tcp  --  anywhere             anywhere             tcp spt:nfs
-DROP       tcp  --  anywhere             anywhere             tcp spt:2048
-DROP       tcp  --  anywhere             anywhere             tcp spt:2047
+DROP       tcp  --  anywhere             anywhere             tcp dpt:2047
+DROP       tcp  --  anywhere             anywhere             tcp dpt:2048
+DROP       tcp  --  anywhere             anywhere             tcp dpt:nfs
 ACCEPT     all  --  raspberry            anywhere            
-...
+... 
+root@jeffs-desktop:~# 
+```
+Now that the firewall is on (blocking) for ports 2047 (formerly closed), 2048 (formerly closed, now bound to the `fw_verifier`), and 2049 (formerly open and bound
+to NFS), let's go through the same troubleshooting steps.
+### nmap
+Note that the ports I blocked with firewall are filtered.
+```
+pi@raspberrypi:~ $ sudo nmap -O -sT 192.168.0.149 -p 2047-2052
+Starting Nmap 7.70 ( https://nmap.org ) at 2022-01-10 00:29 PST
+Nmap scan report for jeffs-desktop (192.168.0.149)
+Host is up (0.0017s latency).
+
+PORT     STATE    SERVICE
+2047/tcp filtered dls
+2048/tcp filtered dls-monitor
+2049/tcp filtered nfs
+2050/tcp open     av-emb-config
+2051/tcp open     epnsdp
+2052/tcp closed   clearvisn
+MAC Address: BC:5F:F4:21:AA:60 (ASRock Incorporation)
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.70%E=4%D=1/10%OT=2050%CT=2052%CU=30677%PV=Y%DS=1%DC=D%G=Y%M=BC5
+OS:FF4%TM=61DBEE7C%P=arm-unknown-linux-gnueabihf)SEQ(SP=107%GCD=1%ISR=10C%T
+OS:I=Z%CI=Z%TS=A)SEQ(SP=107%GCD=1%ISR=10C%TI=Z%CI=Z%II=I%TS=A)OPS(O1=M5B4ST
+OS:11NW7%O2=M5B4ST11NW7%O3=M5B4NNT11NW7%O4=M5B4ST11NW7%O5=M5B4ST11NW7%O6=M5
+OS:B4ST11)WIN(W1=FE88%W2=FE88%W3=FE88%W4=FE88%W5=FE88%W6=FE88)ECN(R=Y%DF=Y%
+OS:T=40%W=FAF0%O=M5B4NNSNW7%CC=Y%Q=)T1(R=Y%DF=Y%T=40%S=O%A=S+%F=AS%RD=0%Q=)
+OS:T2(R=N)T3(R=N)T4(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R%O=%RD=0%Q=)T5(R=Y%DF=Y%T=
+OS:40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R%O=%RD=0
+OS:%Q=)T7(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=Y%DF=N%T=40%IPL=1
+OS:64%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%T=40%CD=S)
+
+Network Distance: 1 hop
+
+OS detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 17.46 seconds
+pi@raspberrypi:~ $ 
+
+```
+`nc` (`netcat`) is still listening on port 2050.  `fw_verifier` is still listening on port 2051.
+ Port 2049 is still bound to something, perhaps NFS, but we don't know because that port is filtered.  Port 2048 is still bound to `fw_verifier`.
+ 
+
+### tcpdump
 
 ```
 jeffs@jeffs-desktop:~/fw_verifier$ <kbd>sudo tcpdump -n tcp portrange 2048-2050 and host 192.168.0.149</kbd><samp>
@@ -209,71 +244,6 @@ listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
 00:48:00.757988 IP 192.168.0.159.38896 > 192.168.0.149.2050: Flags [S], seq 2376835721, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
 00:48:00.758087 IP 192.168.0.159.41092 > 192.168.0.149.2048: Flags [S], seq 3528916545, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
 00:48:00.758186 IP 192.168.0.159.55184 > 192.168.0.149.2049: Flags [S], seq 2603460365, win 64240, options [mss 1460,sackOK,TS val 1890353738 ecr 0,nop,wscale 7], length 0
+...
 </samp>
 ```
-#### Failure mode: nothing is listening on that port.
-If the firewall is passing packets but nothing is listening on the port, then tcpdump will
-show TCP packets with the RESET bit set
-```
-jeffs@jeffs-desktop:~/software/fw_verifier$ <kbd>sudo tcpdump -n tcp portrange 8567-8569</kbd><samp>
-tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
-listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
-21:14:21.412609 IP 192.168.0.159.42538 > 192.168.0.149.8569: Flags [S], seq 3359576664, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412688 IP 192.168.0.149.8569 > 192.168.0.159.42538: Flags [R.], seq 0, ack 3359576665, win 0, length 0
-21:14:21.412696 IP 192.168.0.159.56432 > 192.168.0.149.8567: Flags [S], seq 3239392529, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412709 IP 192.168.0.149.8567 > 192.168.0.159.56432: Flags [R.], seq 0, ack 3239392530, win 0, length 0
-21:14:21.412712 IP 192.168.0.159.46580 > 192.168.0.149.8568: Flags [S], seq 1318266902, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412722 IP 192.168.0.149.8568 > 192.168.0.159.46580: Flags [R.], seq 0, ack 1318266903, win 0, length 0
-21:14:21.588341 IP 192.168.0.159.56055 > 192.168.0.149.8567: Flags [S], seq 1128992667, win 31337, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.588399 IP 192.168.0.149.8567 > 192.168.0.159.56055: Flags [R.], seq 0, ack 1128992668, win 0, length 0
-21:14:21.613411 IP 192.168.0.159.56056 > 192.168.0.149.8567: Flags [.], ack 3764636647, win 32768, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.613474 IP 192.168.0.149.8567 > 192.168.0.159.56056: Flags [R], seq 3764636647, win 0, length 0
-21:14:21.638449 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 1128992667, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.638481 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1128992668, win 0, length 0
-21:14:23.087594 IP 192.168.0.159.56055 > 192.168.0.149.8567: Flags [S], seq 2441507715, win 31337, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.087656 IP 192.168.0.149.8567 > 192.168.0.159.56055: Flags [R.], seq 0, ack 1312515049, win 0, length 0
-21:14:23.112671 IP 192.168.0.159.56056 > 192.168.0.149.8567: Flags [.], ack 3370547257, win 32768, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.112726 IP 192.168.0.149.8567 > 192.168.0.159.56056: Flags [R], seq 2840216607, win 0, length 0
-21:14:23.137793 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 2441507715, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.137837 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1312515049, win 0, length 0
-21:14:23.238483 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 2441507715, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:2jeffs@jeffs-desktop:~/software/fw_verifier$ sudo tcpdump -n tcp portrange 8567-8569
-tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
-listening on enp5s0, link-type EN10MB (Ethernet), capture size 262144 bytes
-21:14:21.412609 IP 192.168.0.159.42538 > 192.168.0.149.8569: Flags [S], seq 3359576664, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412688 IP 192.168.0.149.8569 > 192.168.0.159.42538: Flags [R.], seq 0, ack 3359576665, win 0, length 0
-21:14:21.412696 IP 192.168.0.159.56432 > 192.168.0.149.8567: Flags [S], seq 3239392529, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412709 IP 192.168.0.149.8567 > 192.168.0.159.56432: Flags [R.], seq 0, ack 3239392530, win 0, length 0
-21:14:21.412712 IP 192.168.0.159.46580 > 192.168.0.149.8568: Flags [S], seq 1318266902, win 64240, options [mss 1460,sackOK,TS val 2050334390 ecr 0,nop,wscale 7], length 0
-21:14:21.412722 IP 192.168.0.149.8568 > 192.168.0.159.46580: Flags [R.], seq 0, ack 1318266903, win 0, length 0
-21:14:21.588341 IP 192.168.0.159.56055 > 192.168.0.149.8567: Flags [S], seq 1128992667, win 31337, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.588399 IP 192.168.0.149.8567 > 192.168.0.159.56055: Flags [R.], seq 0, ack 1128992668, win 0, length 0
-21:14:21.613411 IP 192.168.0.159.56056 > 192.168.0.149.8567: Flags [.], ack 3764636647, win 32768, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.613474 IP 192.168.0.149.8567 > 192.168.0.159.56056: Flags [R], seq 3764636647, win 0, length 0
-21:14:21.638449 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 1128992667, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:21.638481 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1128992668, win 0, length 0
-21:14:23.087594 IP 192.168.0.159.56055 > 192.168.0.149.8567: Flags [S], seq 2441507715, win 31337, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.087656 IP 192.168.0.149.8567 > 192.168.0.159.56055: Flags [R.], seq 0, ack 1312515049, win 0, length 0
-21:14:23.112671 IP 192.168.0.159.56056 > 192.168.0.149.8567: Flags [.], ack 3370547257, win 32768, options [wscale 10,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.112726 IP 192.168.0.149.8567 > 192.168.0.159.56056: Flags [R], seq 2840216607, win 0, length 0
-21:14:23.137793 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 2441507715, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.137837 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1312515049, win 0, length 0
-21:14:23.238483 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 2441507715, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.238560 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1312515049, win 0, length 0
-21:14:23.339160 IP 192.168.0.159.56057 > 192.168.0.149.8567: Flags [FPU], seq 2441507715, win 65535, urg 0, options [wscale 15,nop,mss 265,TS val 4294967295 ecr 0,sackOK], length 0
-21:14:23.339230 IP 192.168.0.149.8567 > 192.168.0.159.56057: Flags [R.], seq 0, ack 1312515049, win 0, length 0</samp>
-
-```
-
-
-
-
-
-
-
-
-### nmap
-
-nmap -sT ADDRESS -p 2048-2050
-
-
